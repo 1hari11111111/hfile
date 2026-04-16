@@ -25,7 +25,7 @@ async def channel_post(client: Client, message: Message):
         return
 
     converted_id = post_message.id * abs(client.db_channel.id)
-    string = f"get-{converted_id}"
+    string = f"file-{converted_id}"
     base64_string = await encode(string)
     link = f"https://t.me/{client.username}?start={base64_string}"
 
@@ -48,7 +48,7 @@ async def new_post(client: Client, message: Message):
         return
 
     converted_id = message.id * abs(client.db_channel.id)
-    string = f"get-{converted_id}"
+    string = f"file-{converted_id}"
     base64_string = await encode(string)
     link = f"https://t.me/{client.username}?start={base64_string}"
     reply_markup = InlineKeyboardMarkup([
