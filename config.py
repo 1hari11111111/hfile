@@ -2,19 +2,19 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8645344135:AAHbuf7HlPkvKrPiVJ83zjhWbdRemGcEFPU")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 API_ID = int(os.environ.get("API_ID", "38570926"))
 API_HASH = os.environ.get("API_HASH", "0d7285e5fc1fce2c152e41ec069bf6bc")
 
 
-OWNER_ID = int(os.environ.get("OWNER_ID", "8327243105"))
+OWNER_ID = int(os.environ.get("OWNER_ID", "8204618290"))
 DB_URL = os.environ.get("DB_URL", "mongodb+srv://ranigupta24753y_db_user:hari813142@cluster0.n5hqign.mongodb.net/?appName=Cluster0")
-DB_NAME = os.environ.get("DB_NAME", "madflixbotz")
+DB_NAME = os.environ.get("DB_NAME", "kmbotz")
 
 
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003733062475"))
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003972912715"))
 
-FILE_AUTO_DELETE = int(os.getenv("FILE_AUTO_DELETE", "600"))  # auto delete in seconds
+FILE_AUTO_DELETE = int(os.getenv("FILE_AUTO_DELETE", "300"))  # auto delete in seconds
 
 PORT = os.environ.get("PORT", "8080")
 TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "4"))
