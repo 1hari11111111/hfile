@@ -122,8 +122,8 @@ async def start_command(client: Client, message: Message):
         await message.reply(
             text=(
                 "🔗 <b>Access Your File</b>\n\n"
-                "Click the button below to get your file.\n"
-                "<i>Complete the short step, then you'll be redirected back.</i>"
+                "YOU ARE NOT A PREMIUM USER.\n"
+                "<i>Complete the shortner steps, then you'll get ur link.</i>"
             ),
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📥 Get File Now", url=short_link)],
