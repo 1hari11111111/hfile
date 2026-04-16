@@ -1,10 +1,19 @@
 """
 Start plugin — handles /start, file delivery, force-subscribe, shortener, analytics.
-Flow:
-  Subscribed + payload → Premium? → send directly
-                                  → Free first visit? → show shortener button
-                                  → Free returning (get-xxx) → send file
-  Not subscribed → show join buttons
+
+Payload prefix convention (encoded in base64 start param):
+  "file-XXXX"      → original shared link (first visit)
+  "file-XXXX-YYYY" → original shared batch link (first visit)
+  "get-XXXX"       → verified link after passing shortener (free user, deliver file)
+  "get-XXXX-YYYY"  → verified batch link after passing shortener
+
+Flow for free users:
+  1. User clicks shared link  → payload starts with "file-"
+     → show shortener button; shortener URL points to a "get-" encoded link
+  2. User completes shortener, clicks bot link → payload starts with "get-"
+     → deliver file directly
+
+Premium / Admin users skip the shortener entirely on the "file-" payload.
 """
 import asyncio
 import humanize
@@ -12,7 +21,7 @@ import humanize
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
-    Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+    Message, InlineKeyboardMarkup, InlineKeyboardButton,
 )
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
 
@@ -29,6 +38,25 @@ from helpers.analytics import save_click
 
 file_auto_delete_readable = humanize.naturaldelta(FILE_AUTO_DELETE)
 
+
+def _parse_ids(argument: list, db_channel_id: int) -> list | None:
+    """
+    Parse message IDs from a decoded payload argument list.
+    argument[0] is the prefix ("file" or "get"), argument[1] (and optionally [2]) are encoded IDs.
+    Returns a list of message IDs, or None on parse failure.
+    """
+    try:
+        if len(argument) == 3:
+            start = int(int(argument[1]) / abs(db_channel_id))
+            end   = int(int(argument[2]) / abs(db_channel_id))
+            return list(range(start, end + 1)) if start <= end else list(range(start, end - 1, -1))
+        elif len(argument) == 2:
+            return [int(int(argument[1]) / abs(db_channel_id))]
+    except Exception:
+        pass
+    return None
+
+
 # ─── /start (subscribed) ───────────────────────────────────────────────────────
 
 @Bot.on_message(filters.command('start') & filters.private & subscribed)
@@ -44,57 +72,61 @@ async def start_command(client: Client, message: Message):
 
     text = message.text
     if len(text) > 7:
-        # Has a payload
+        # ── Has a payload ──────────────────────────────────────────────────────
         try:
             base64_string = text.split(" ", 1)[1]
         except IndexError:
             return
 
-        string = await decode(base64_string)
-        argument = string.split("-")
+        try:
+            string = await decode(base64_string)
+        except Exception:
+            return
 
-        # Parse file ID range
-        if len(argument) == 3:
-            try:
-                start = int(int(argument[1]) / abs(client.db_channel.id))
-                end = int(int(argument[2]) / abs(client.db_channel.id))
-            except Exception:
-                return
-            ids = range(start, end + 1) if start <= end else list(
-                range(start, end - 1, -1)
-            )
-        elif len(argument) == 2:
-            try:
-                ids = [int(int(argument[1]) / abs(client.db_channel.id))]
-            except Exception:
-                return
-        else:
+        argument = string.split("-")
+        if len(argument) < 2:
+            return
+
+        prefix = argument[0]   # "file" or "get"
+        ids = _parse_ids(argument, client.db_channel.id)
+        if ids is None:
             return
 
         premium = await is_premium(user_id)
+        is_admin = user_id in ADMINS
 
-        # ── Premium: deliver directly ──────────────────────────────────────────
-        if premium or user_id in ADMINS:
-            await _send_files(client, message, list(ids), premium=True)
+        # ── "get-" payload: always deliver the file (shortener already passed) ─
+        if prefix == "get":
+            await _send_files(client, message, ids, premium=premium or is_admin)
             return
 
-        # ── Free user: check if this is a "get-" returning visit ──────────────
-        if argument[0] == "get":
-            await _send_files(client, message, list(ids), premium=False)
+        # ── "file-" payload ────────────────────────────────────────────────────
+        # Premium / Admin → deliver directly, no shortener
+        if premium or is_admin:
+            await _send_files(client, message, ids, premium=True)
             return
 
-        # ── Free user first visit: show shortener button ───────────────────────
-        original_link = f"https://t.me/{client.username}?start={base64_string}"
-        short_link = await get_shortlink(original_link)
+        # Free user → build a "get-" payload for the post-shortener link
+        # Re-encode argument[1] (and optionally [2]) under the "get" prefix
+        if len(argument) == 3:
+            get_string = f"get-{argument[1]}-{argument[2]}"
+        else:
+            get_string = f"get-{argument[1]}"
+
+        get_base64 = await encode(get_string)
+        verified_link = f"https://t.me/{client.username}?start={get_base64}"
+
+        # Wrap verified_link through the active shortener
+        short_link = await get_shortlink(verified_link)
 
         await message.reply(
             text=(
                 "🔗 <b>Access Your File</b>\n\n"
-                "Please visit the link below to get your file.\n"
-                "After completing the step, come back and tap the button."
+                "Click the button below to get your file.\n"
+                "<i>Complete the short step, then you'll be redirected back.</i>"
             ),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📥 Get File", url=short_link)],
+                [InlineKeyboardButton("📥 Get File Now", url=short_link)],
             ]),
             quote=True,
             disable_web_page_preview=True
