@@ -3,12 +3,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-API_ID = int(os.environ.get("API_ID", "38570926"))
-API_HASH = os.environ.get("API_HASH", "0d7285e5fc1fce2c152e41ec069bf6bc")
+API_ID = int(os.environ.get("API_ID", ""))
+API_HASH = os.environ.get("API_HASH", "")
 
 
-OWNER_ID = int(os.environ.get("OWNER_ID", "8204618290"))
-DB_URL = os.environ.get("DB_URL", "mongodb+srv://ranigupta24753y_db_user:hari813142@cluster0.n5hqign.mongodb.net/?appName=Cluster0")
+OWNER_ID = int(os.environ.get("OWNER_ID", ""))
+DB_URL = os.environ.get("DB_URL", "")
 DB_NAME = os.environ.get("DB_NAME", "kmbotz")
 
 
@@ -21,7 +21,7 @@ TG_BOT_WORKERS = int(os.environ.get("TG_BOT_WORKERS", "4"))
 
 try:
     ADMINS = [OWNER_ID]
-    for x in (os.environ.get("ADMINS", "8327243105").split()):
+    for x in (os.environ.get("ADMINS", "").split()):
         val = int(x)
         if val not in ADMINS:
             ADMINS.append(val)
